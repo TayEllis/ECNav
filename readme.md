@@ -1,6 +1,6 @@
 # ECMap/ECNav
 
-ECMap/Nav is a web application that allows users to find specific rooms within the engineering center on the campus of University of Colorado Boulder, written primarily in Javascript, HTML, CSS, and MySQL.  Search results will render a map image with an idicator directing them to the correct room.  
+ECMap/Nav is a web application that allows users to find specific rooms within the engineering center on the campus of University of Colorado Boulder, written primarily in Javascript, HTML, CSS, and MySQL.  Search results will render a map image with an idicator directing them to the correct room. Check it out here: https://ecmap.herokuapp.com/
 
 ## Getting Started
 
@@ -45,5 +45,5 @@ Please feel free to submit pull requests to the team.  All requests will be revi
 * **Jason Hong** - MySQL
 * **Steven James McDonald** - Javascript/HTML/CSS
 
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+
 
