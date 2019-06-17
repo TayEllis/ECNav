@@ -8,6 +8,75 @@
 var express = require('express'); //Ensure our express framework has been added
 var app = express();
 var mysql = require('mysql');
+app.engine('js', require('ejs').renderFile);
+
+//Used by auth0------------------------------------------------
+var session = require('express-session');
+var userProfile = null;
+// config express-session
+var sess = {
+  secret: 'XLFLK98935jFnkfgsjp30',
+  cookie: { sameSite: true },
+  resave: false,
+  saveUninitialized: true,
+};
+
+if (app.get('env') === 'production') {
+  //sess.cookie.secure = true; // serve secure cookies, requires https
+}
+
+app.use(session(sess));
+
+// Load environment variables from .env
+var dotenv = require('dotenv');
+dotenv.config();
+
+// Load Passport
+var passport = require('passport');
+var Auth0Strategy = require('passport-auth0');
+
+// Configure Passport to use Auth0
+var strategy = new Auth0Strategy(
+  {
+    domain: process.env.AUTH0_DOMAIN,
+    clientID: process.env.AUTH0_CLIENT_ID,
+    clientSecret: process.env.AUTH0_CLIENT_SECRET,
+    callbackURL: process.env.AUTH0_CALLBACK_URL || 'http://localhost:3000/callback',
+    state: false
+  },
+  function (accessToken, refreshToken, extraParams, profile, done) {
+    // accessToken is the token to call Auth0 API (not needed in the most cases)
+    // extraParams.id_token has the JSON Web Token
+    // profile has all the information from the user
+    return done(null, profile);
+  }
+);
+
+// You can use this section to keep a smaller payload
+passport.serializeUser(function (user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function (user, done) {
+  done(null, user);
+});
+
+passport.use(strategy);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+var userInViews = require('./lib/middleware/userInViews');
+var authRouter = require('./routes/auth');
+var usersRouter = require('./routes/users');
+
+// ..
+app.use(userInViews());
+app.use('/', authRouter);
+app.use('/', usersRouter);
+app.use('/users', usersRouter);
+
+//End auth0 setup -----------------------------------------------
 
 var bodyParser = require('body-parser'); //Ensure our body-parser tool has been added
 app.use(bodyParser.json());              // support json encoded bodies
@@ -40,294 +109,193 @@ var con = mysql.createConnection({
 
 con.connect(function(err) {
   if (err) throw err;
-  console.log("Connected!");
+  console.log("Connected to room database.");
 });
+
 
 // set the view engine to ejs
 app.set('view engine', 'ejs');
-app.use(express.static(__dirname + '/'));//This line is necessary for us to use relative paths and access our resources directory
+app.use(express.static(__dirname + '/')); //This line is necessary for us to use relative paths and access our resources directory
+
 
 /**********************
   GET Requests:
 **********************/
 
-// home page 
+// home page
 app.get('/', function(req, res) {
-  var query1 = "select * from room_data"
-  res.render('pages/home',{
+
+  if(req.user != null){
+    console.log("profile found.");
+    res.render('pages/home',{
+          my_title: "EC Nav",
+          search_result:null,
+          userProfile:req.user
+      })
+  } else {
+    console.log("no user profile found");
+    res.render('pages/home',{
+          my_title: "EC Nav",
+          search_result:null,
+          userProfile:null
+      })
+  }
+  });
+
+// test page
+app.get('/test', function(req, res) {
+  //var query1 = "select * from room_data"
+  res.render('pages/test',{
 //        local_css: "signin.css",
-        my_title: "Login Page",
-        search_result:null
+        my_title: "Test Page",
+        search_result:null,
+        user:null
       })
   });
-  
+
 //Our main search functionality:
 app.get('/search', function(req, res) {
 	var search_input = req.query.search_input;
-  
+  if(req.user){
+    var userProfile = req.user;
+  } else {
+    var userProfile = null;
+  }
   //If our input is valid:
   if (search_input != ''){
-    
+
     console.log("Valid search requested.");
-    
+
     //If they searched with alphas first:
     if (search_input.charAt(0).toLowerCase() != search_input.charAt(0).toUpperCase()){
-      
+
       console.log("User searched alpha first.");
       var prefix = search_input.substring(0,4);
       var number = search_input.substring(4);
-      
+
       //If they entered room number with a space:
       if (number && number.charAt(0) == ' ') {
-        
+
         console.log("Entered room number w/ a space.")
         number = number.substring(1);
-        
+
       }
-      
+
       if (prefix && number){
-        
+
         console.log("probably a properly formatted search.");
         var query1 = "select * from room_data where room_num like '" + number + "%' and wing_id like '" + prefix + "%';";
-        console.log(query1);  
+        console.log(query1);
         con.query(query1, function (err, result) {
-            if (err){ 
+            if (err){
               res.render('pages/home',{
       //        local_css: "signin.css",
-              my_title: "Login Page",
-              search_result:null
+              my_title: "Search Results",
+              search_result:null,
+              userProfile:req.user
             });
             }
             res.render('pages/home',{
       //        local_css: "signin.css",
-              my_title: "Login Page",
-              search_result:result
+              my_title: "Search Results",
+              search_result:result,
+              userProfile:req.user
             });
           console.log(result);
         });
-        
+
       }
       else if (prefix && !number){
-        
+
         console.log("no room number on alpha search.");
         var query1 = "select * from room_data where wing_id like '" + prefix + "%';";
-        console.log(query1);  
+        console.log(query1);
         con.query(query1, function (err, result) {
-            if (err){ 
+            if (err){
               res.render('pages/home',{
       //        local_css: "signin.css",
-              my_title: "Login Page",
-              search_result:null
+              my_title: "Search Results",
+              search_result:null,
+              userProfile:req.user
             });
             }
             res.render('pages/home',{
       //        local_css: "signin.css",
-              my_title: "Login Page",
-              search_result:result
+              my_title: "Search Results",
+              search_result:result,
+              userProfile:req.user
             });
           console.log(result);
         });
-                
+
       }
       else {
-        
+
         console.log("bad alpha search.");
         var query1 = "select * from room_data where room_num like '" + search_input + "%';";
-        console.log(query1);  
+        console.log(query1);
         con.query(query1, function (err, result) {
-            if (err){ 
+            if (err){
               res.render('pages/home',{
       //        local_css: "signin.css",
-              my_title: "Login Page",
-              search_result:null
+              my_title: "Search Results",
+              search_result:null,
+              userProfile:req.user
             });
             }
             res.render('pages/home',{
       //        local_css: "signin.css",
-              my_title: "Login Page",
-              search_result:result
+              my_title: "Search Results",
+              search_result:result,
+              userProfile:req.user
             });
           console.log(result);
         });
-        
+
       }
-    
+
     }
     //Else they searched a number first or invalid input:
     else {
-     
+
       console.log("User searched a number.");
-      
+
       var query1 = "select * from room_data where room_num like '" + search_input + "%';";
-      console.log(query1);  
+      console.log(query1);
       con.query(query1, function (err, result) {
-          if (err){ 
+          if (err){
             res.render('pages/home',{
     //        local_css: "signin.css",
-            my_title: "Login Page",
-            search_result:null
+            my_title: "Search Results",
+            search_result:null,
+            userProfile:req.user
           });
           }
           res.render('pages/home',{
     //        local_css: "signin.css",
-            my_title: "Login Page",
-            search_result:result
+            my_title: "Search Results",
+            search_result:result,
+            userProfile:req.user
           });
         console.log(result);
       });
-     
+
     }
-    
+
   }
   else {
-    
+
     console.log("Invalid search requested.");
-    
+
     res.render('pages/home',{
   //        local_css: "signin.css",
-          my_title: "Login Page",
-          search_result:null
+          my_title: "Search Results",
+          search_result:null,
+          userProfile:req.user
         });
-    
+
   }
 
 });
 
-//
-//app.post('/home/pick_color', function(req, res) {
-//	var color_hex = req.body.color_hex;
-//	var color_name = req.body.color_name;
-//	var color_message = req.body.color_message;
-//	var insert_statement = "INSERT INTO favorite_colors(hex_value, name, color_msg) VALUES('" + color_hex + "','" + 
-//							color_name + "','" + color_message +"');";
-//
-//	var color_select = 'select * from favorite_colors;';
-//	db.task('get-everything', task => {
-//    return task.batch([
-//      task.any(insert_statement),
-//      task.any(color_select)
-//    ]);
-//  })
-//  .then(info => {
-//  	res.render('pages/home',{
-//				my_title: "Home Page",
-//				data: info[1],
-//				color: color_hex,
-//				color_msg: color_message
-//			})
-//  })
-//  .catch(error => {
-//    // display error message in case an error
-//      request.flash('error', err);
-//      response.render('pages/home', {
-//        title: 'Home Page',
-//        data: '',
-//        color: '',
-//        color_msg: ''
-//      })
-//  });
-//});
-//
-//// registration page 
-//app.get('/register', function(req, res) {
-//	res.render('pages/register',{
-//		my_title:"Registration Page"
-//	});
-//});
-//
-///*Add your other get/post request handlers below here: */
-//// team stats:
-//app.get('/team_stats', function(req, res) {
-//  var query0 = 'SELECT * FROM football_games;';
-//  var query1 = 'SELECT COUNT(*) FROM football_games AS count WHERE home_score > visitor_score;';
-//  var query2 = 'SELECT COUNT(*) FROM football_games AS count WHERE home_score < visitor_score;';
-//  db.task('get-everything', task => {
-//      return task.batch([
-//          task.any(query0),
-//          task.any(query1),
-//          task.any(query2)
-//      ]);
-//  })
-//  .then(task => {
-//    res.render('pages/team_stats',{
-//        my_title: "Season Stats",
-//        data: task[0],
-//        wins: task[1][0].count,
-//        losses: task[2][0].count
-//      })
-//  })
-//  .catch(error => {
-//      // display error message in case an error
-//          request.flash('error', err);
-//          res.render('pages/team_stats',{
-//        my_title: "Season Stats",
-//        data: '',
-//        wins: '',
-//        losses: ''
-//      })
-//  });
-//});
-//
-//// registration page 
-//app.get('/player_info', function(req, res) {
-//  var query0 = 'SELECT * FROM football_players ORDER BY name;';
-//  db.task('get-everything', task => {
-//      return task.batch([
-//          task.any(query0)
-//      ]);
-//  })
-//  .then(task => {
-//    res.render('pages/player_info',{
-//        my_title: "Player Information",
-//        data: task[0],
-//        played_games: null,
-//        selected_player: null
-//      })
-//  })
-//  .catch(error => {
-//      // display error message in case an error
-//          request.flash('error', err);
-//          res.render('pages/player_info',{
-//        my_title: "Player Information",
-//        data: null,
-//        played_games: null,
-//        selected_player: null
-//      })
-//  });
-//});
-//
-//app.get('/player_info/post', function(req, res) {
-//  console.log(req.query.player_choice);
-//  var q1 = 'SELECT * FROM football_players ORDER BY name;';
-//  var q2 = "select * from football_players where id = '" + req.query.player_choice + "';";
-//  console.log("SELECT COUNT(*) FROM football_games AS count WHERE " + req.query.player_choice + " = ANY(players);");
-//  var q3  = "SELECT COUNT(*) FROM football_games AS count WHERE " + req.query.player_choice + " = ANY(players);";
-//  db.task('get-everything', task => {
-//        return task.batch([
-//      task.any(q1),
-//      task.any(q2),
-//      task.any(q3)
-//        ]);
-//    })
-//  .then(task => {
-//    res.render('pages/player_info',{
-//        my_title: "Player Information",
-//        data: task[0],
-//        selected_player: task[1],
-//        played_games: task[2][0].count
-//      })
-//  })
-//  .catch(error => {
-//      // display error message in case an error
-//          request.flash('error', err);
-//          res.render('pages/player_info',{
-//        my_title: "Player Information",
-//        selected_player: null,
-//        data: null,
-//        played_games: null
-//      })
-//  });
-//});
-//
-//
 app.listen(process.env.PORT);

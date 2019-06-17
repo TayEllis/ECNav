@@ -1,28 +1,213 @@
 <% include ../partials/header %>
-	<div class="container">
-		<h1>ECNav</h1>
-		<!-- Search form -->
-		<form action="/search" method="get">
-			<div class="input-group">
-				<input type="text" class="form-control" placeholder="Search" id="search_input" name="search_input">
-				<div class="input-group-btn">
-					<button class="btn btn-primary btn-block" type="submit" style="margin-left:10px;">
-						Search
-					</button>
-				</div>
-			</div>
-		</form>
-		<br>
-		<% if(search_result != null)
-		{%>
-				<%
-				var rooms = '';
-				search_result.forEach(function(item){
-			  		 rooms += '<p><b>Room Name:</b> ' + item.wing_id + ' ' + item.room_num + ' <b>Room Type:</b> ' + item.room_type + ' <b>Image:</b> ' + item.image_name + '</p>';
-			  	 }); %>
-				<h3>Results:</h3>
-			  	 <%- rooms %> 
-	 <% }%>
-	</div>
-  
-<% include ../partials/footer %>
+<script>
+  var zoomLevel = 0;
+  var realWidth = 7501;
+  function load(){
+    document.getElementById("mapDiv").scrollLeft =  map.offsetWidth/2 - document.getElementById("mapDiv").offsetWidth/2;
+    document.getElementById("mapDiv").scrollTop =   map.offsetHeight/2 - document.getElementById("mapDiv").offsetHeight/2;
+    while(zoomLevel > -10){
+      zoomOut();
+    }
+  }
+  //left off implementing realTop and realLeft for bubbles position, same as realWidth, account for multiplicative truncation.
+  function loadImage(img){
+    document.getElementById("map").src = img;
+  }
+  //pinDrop function, passes in x and y paramaters and drops pin at that location.
+  function pinDrop(x,y) {
+    if(zoomLevel<0){
+      while(zoomLevel<0){
+        zoomIn();
+      }
+    }
+    while(zoomLevel>0){
+      zoomOut();
+    }
+    document.getElementsByClassName("speech-bubble")[0].style.display = "block";
+    document.getElementsByClassName("speech-bubble")[0].style.top = (y-document.getElementsByClassName("speech-bubble")[0].offsetHeight-16) + "px";
+    document.getElementsByClassName("speech-bubble")[0].style.left = (x-document.getElementsByClassName("speech-bubble")[0].offsetWidth+20) + "px";
+    while(zoomLevel!=-8){
+      zoomOut();
+    }
+    document.getElementById("mapDiv").scrollLeft = x * Math.pow(8/7,zoomLevel) - document.getElementById("mapDiv").offsetWidth/2;
+    document.getElementById("mapDiv").scrollTop = y * Math.pow(8/7,zoomLevel) - document.getElementById("mapDiv").offsetHeight/2;
+    }
+  function displayInfo(roomNum){
+    document.getElementsByClassName("speech-bubble")[0].innerHTML = roomNum;
+  }
+  function zoomIn(){
+  if(zoomLevel<0){
+    zoomLevel++;
+      realWidth = parseFloat(realWidth* (8/7));
+    document.getElementById("map").width = realWidth;
+      var pixelCords = document.getElementsByClassName("speech-bubble")[0];
+    document.getElementsByClassName("speech-bubble")[0].style.top = (((pixelCords.offsetTop-pixelCords.offsetHeight+10)*(8/7)) + (pixelCords.offsetHeight)+5) + "px";
+    document.getElementsByClassName("speech-bubble")[0].style.left = ((((pixelCords.offsetLeft)-pixelCords.offsetWidth+20)*(8/7)) + (pixelCords.offsetWidth)+4) + "px";
+    document.getElementById("mapDiv").scrollTop  = ((document.getElementById("mapDiv").scrollTop+(document.getElementById("mapDiv").offsetHeight/2)) * 8/7) - (document.getElementById("mapDiv").offsetHeight/2);
+    document.getElementById("mapDiv").scrollLeft = ((document.getElementById("mapDiv").scrollLeft +(document.getElementById("mapDiv").offsetWidth/2)) * 8/7) - (document.getElementById("mapDiv").offsetWidth/2);
+  }
+}
+  function zoomOut(){
+  if(zoomLevel>-13){
+    zoomLevel--;
+    realWidth = parseFloat(realWidth* (7/8));
+      document.getElementById("map").width =realWidth.toFixed(0);
+      var pixelCords = document.getElementsByClassName("speech-bubble")[0];
+    document.getElementsByClassName("speech-bubble")[0].style.top = (((pixelCords.offsetTop-pixelCords.offsetHeight-10)*(7/8)) + (pixelCords.offsetHeight)-6)+ "px";
+    document.getElementsByClassName("speech-bubble")[0].style.left = ((((pixelCords.offsetLeft)-pixelCords.offsetWidth-20)*(7/8)) + (pixelCords.offsetWidth)-6) + "px";
+    document.getElementById("mapDiv").scrollTop  = ((document.getElementById("mapDiv").scrollTop+(document.getElementById("mapDiv").offsetHeight/2)) * 7/8) - (document.getElementById("mapDiv").offsetHeight/2);
+    document.getElementById("mapDiv").scrollLeft = ((document.getElementById("mapDiv").scrollLeft +(document.getElementById("mapDiv").offsetWidth/2)) * 7/8) - (document.getElementById("mapDiv").offsetWidth/2);
+  }
+  }
+function status(){
+    loadInfo("TestRoom",4575,3870);
+  }
+ function loadInfo(roomNum,x,y){
+  displayInfo(roomNum);
+  pinDrop(x,y);
+ }
+
+</script>
+<style>
+#buttons{
+position:fixed;
+z-index:1;
+left: 10vw;
+top: 18vh;
+}
+/*
+#secondButton {
+border-radius:50%;
+font-size:30px;
+position:relative;
+z-index: 1;
+}
+#thirdButton {
+font-size:30px;
+position:relative;
+z-index: 1;
+left:20px;
+}
+#fourthButton {
+font-size:30px;
+position:relative;
+z-index: 1;
+left:40px;
+}
+*/
+#mapDiv{
+position: fixed;
+overflow: auto;
+max-width: 100vw;
+max-height: 100vh;
+left: 0vw;
+top: 0vh;
+}
+#resultCont{
+  postion: fixed;
+  overflow: auto;
+  max-width:19vw;
+  max-height: 75vh;
+  left: 85vw;
+  top:20vh;
+}
+.speech-bubble {
+z-index: 1;
+background: #ed5a3d;
+-webkit-border-radius: 4px;
+        border-radius: 4px;
+font-size: 1rem;
+line-height: 1.3;
+margin: 0 auto 40px;
+max-width: 200px;
+padding: 15px;
+position: absolute;
+top:0px;
+left:500px;
+display:none;
+}
+.speech-bubble p {
+margin: 0 0 10px;
+}
+.speech-bubble p:last-of-type {
+margin-bottom: 0;
+}
+.speech-bubble::after {
+border-left: 20px solid transparent;
+border-top: 20px solid #efefef;
+bottom: -20px;
+content: "";
+position: absolute;
+right: 20px;
+border-top-color: #ed5a3d;
+
+}
+.map
+{
+    position: relative;
+    top: 0;
+    left: 0;
+}
+</style>
+  <body onload = load()>
+    <div class="container" style="z-index:1; margin-bottom:10px;" >
+        <a href="login" style="text-decoration: none;">
+           <button class="btn btn-primary">Login</button>
+        </a>
+        <% if(userProfile != null)
+        {%>
+        <a href="logout" style="text-decoration: none;">
+           <button class="btn btn-primary">Log Out</button>
+        </a>
+                     <span>Logged in as: <%- userProfile.displayName %></span>
+        <% }%>
+    <h1>ECNav</h1>
+        <!-- Search form -->
+        <form action="/search" method="get">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Search" id="search_input" name="search_input">
+                <div class="input-group-btn">
+                    <button class="btn btn-primary btn-block" type="submit" style="margin-left:10px;">
+                        Search
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div id = "buttons" style="top:150px;">
+        <button onclick="zoomIn()" class = "btn btn-primary" style="box-shadow: 5px 5px 18px #888888;" id = "secondButton">+</button>
+        <button onclick="zoomOut()"class = "btn btn-primary" style="box-shadow: 5px 5px 18px #888888;" id = "thirdButton">-</button>
+        <!-- <button onclick="status()" class = "btn btn-primary" style="box-shadow: 5px 5px 18px #888888;" id = "fourthButton">status</button> -->
+        </div>
+         <div style="position: relative;" id = "mapDiv">
+             <img id = "map" src="../resources/img/floor01final.jpg" class="map">
+          <div class="speech-bubble">
+         <p><strong>Demo speech bubble</strong></p>
+        </div>
+         </div>
+        <br>
+        <%
+        if(search_result != null)
+        { %>
+           <div class="float-right" id = "resultCont" style = "position:fixed; z-index:10;">
+             <div class="col-med-5">
+               <div class="shadow-lg p-3 mb-5 bg-white rounded">
+                <%
+                var rooms = '';
+                var i = 0;
+                search_result.forEach(function(item){
+                    var fullname = item.wing_id + item.room_num;
+                    rooms += '<div class="radio"><label><input type="radio" name="example1" onclick= loadInfo(' + '\"' + fullname + '\"' + ',' + item.xloc + ',' + item.yloc + ')>' + " Room: " + item.wing_id + " "+ item.room_num +  '</label></div>';
+                    i += 1;
+                    console.log(item.room_num, item.xloc, item.yloc);
+                %>
+           <% });  %>
+           <h3>Results:</h3>
+              <%- rooms %>
+              </div>
+            </div>
+          </div>
+        <%
+      } %>
+  </body>
+    <% include ../partials/footer %>
